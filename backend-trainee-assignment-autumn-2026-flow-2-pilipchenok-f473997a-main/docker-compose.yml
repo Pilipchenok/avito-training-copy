@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kitchen-postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: kitchen_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/001_init.up.sql:/docker-entrypoint-initdb.d/001_init.sql
+    restart: always
+
+  kitchen:
+    build:
+      context: .
+      dockerfile: Dockerfile.kitchen
+    container_name: kitchen-service
+    environment:
+      DATABASE_URL: "postgres://user:pass@postgres:5432/kitchen_db?sslmode=disable"
+      SERVER_PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    restart: on-failure
+
+  restaurant:
+    build:
+      context: .
+      dockerfile: Dockerfile.restaurant
+    container_name: restaurant
+    environment:
+      PORT: "8081"
+      KITCHEN_SERVICE_URL: "http://kitchen:8080"
+    ports:
+      - "8081:8081"
+    depends_on:
+      - kitchen
+    restart: on-failure
+
+volumes:
+  postgres_data:

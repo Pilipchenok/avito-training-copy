@@ -1,0 +1,25 @@
+@startuml C4_Container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title C4 Diagram Level 2 — Avito.Kitchen
+
+Person(client, "Покупатель", "Пользователь клиентского API: выбор блюд, оформление заказов, проверка статуса")
+Person(partner, "Партнёр", "Сотрудник заведения: управление стоп-листом позиций меню")
+
+System_Boundary(platform_boundary, "Docker Compose") {
+    Container(kitchen_api, "Kitchen Service", "Управление заказами, проверка стоп-листов, транзакционный расчёт корзины, State Machine жизненного цикла")
+    ContainerDb(db, "PostgreSQL Database", "Хранение заведений, каталога меню, заказов, позиций корзины и статусов")
+    Container(restaurant_mock, "Restaurant", "Эмулятор кухни: приём вебхуков, эмуляция таймингов приготовления блюд")
+}
+
+Rel(client, kitchen_api, "Создание заказа, просмотр меню, проверка статуса")
+Rel(partner, kitchen_api, "Обновление доступности позиций (стоп-лист)")
+
+Rel(kitchen_api, db, "Транзакции, пессимистические блокировки FOR SHARE, миграции")
+
+Rel(kitchen_api, restaurant_mock, "Асинхронное уведомление о новом заказе")
+Rel(restaurant_mock, kitchen_api, "Смена статусов заказа")
+
+@enduml

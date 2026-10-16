@@ -1,0 +1,41 @@
+@startuml
+autonumber
+actor "Пользователь" as User
+participant "Kitchen API" as API
+database "PostgreSQL" as DB
+participant "Restaurant" as Rest
+
+== 1. Просмотр витрины и меню ==
+User -> API: GET /api/v1/client/restaurants
+API -> DB: SELECT * FROM restaurants WHERE is_active = true
+DB --> API: Список заведений
+API --> User: 200 OK (список ресторанов)
+
+User -> API: GET /api/v1/client/restaurants/{id}/menu
+API -> DB: SELECT * FROM menu_items WHERE restaurant_id = {id}
+DB --> API: Позиции (включая флаг is_available)
+API --> User: 200 OK (меню с пометками стоп-листа)
+
+== 2. Оформление заказа ==
+User -> API: POST /api/v1/client/orders\n{restaurant_id, items: [{id, qty}], address}
+API -> DB: BEGIN TRANSACTION
+API -> DB: Проверка доступности блюд (is_available == true)
+alt Блюдо в стоп-листе
+    DB --> API: Позиция недоступна
+    API -> DB: ROLLBACK
+    API --> User: 409 Conflict / 422 Unprocessable Entity\n("Товар закончился")
+else Все блюда в наличии
+    API -> DB: INSERT INTO orders & order_items
+    API -> DB: COMMIT TRANSACTION
+    API --> User: 201 Created (order_id, status: "CREATED")
+    API -> Rest: POST /webhook/orders (асинхронное оповещение)
+end
+
+== 3. Отслеживание статуса (Polling) ==
+loop Каждые 3-5 секунд
+    User -> API: GET /api/v1/client/orders/{order_id}
+    API -> DB: SELECT status FROM orders WHERE id = {order_id}
+    DB --> API: status (CREATED -> COOKING -> READY)
+    API --> User: 200 OK {status}
+end
+@enduml

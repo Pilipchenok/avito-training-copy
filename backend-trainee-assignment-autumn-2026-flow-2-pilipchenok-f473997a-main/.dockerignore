@@ -1,0 +1,8 @@
+.git
+.gitignore
+bin/
+docs/
+*.md
+.idea/
+.vscode/
+*.log

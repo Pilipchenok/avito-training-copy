@@ -1,0 +1,30 @@
+@startuml
+autonumber
+actor "Менеджер" as RestStaff
+participant "Restaurant" as Mock
+participant "Kitchen API" as API
+database "PostgreSQL" as DB
+
+== 1. Управление стоп-листом ==
+RestStaff -> Mock: Закончились ингредиенты для блюда {item_id}
+Mock -> API: PUT /api/v1/partner/restaurants/{id}/menu/{item_id}/availability\n{is_available: false}
+API -> DB: UPDATE menu_items SET is_available = false
+DB --> API: Updated
+API --> Mock: 200 OK
+
+== 2. Прием и обработка заказа ==
+API -> Mock: POST /webhook/orders (Новый заказ: order_id, состав)
+Mock --> API: 200 OK
+
+Mock -> API: PATCH /api/v1/partner/orders/{order_id}/status\n{status: "COOKING"}
+API -> DB: UPDATE orders SET status = 'COOKING'
+DB --> API: Updated
+API --> Mock: 200 OK
+
+note over Mock: Процесс приготовления
+
+Mock -> API: PATCH /api/v1/partner/orders/{order_id}/status\n{status: "READY"}
+API -> DB: UPDATE orders SET status = 'READY'
+DB --> API: Updated
+API --> Mock: 200 OK
+@enduml
